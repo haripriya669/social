@@ -1,0 +1,141 @@
+Step 1: Install Required Libraries
+First, install the necessary libraries:
+
+
+pip install pandas numpy tweepy textblob nltk scikit-learn matplotlib seaborn wordcloud
+Step 2: Import Libraries
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from wordcloud import WordCloud
+from textblob import TextBlob
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+import nltk
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+import re
+Step 3: Data Collection
+If you plan to collect real-time data from social media platforms like Twitter, you can use the Tweepy library. Below is an example to fetch tweets from Twitter:
+
+
+import tweepy
+
+# Twitter API credentials (replace with your own)
+consumer_key = 'your_consumer_key'
+consumer_secret = 'your_consumer_secret'
+access_token = 'your_access_token'
+access_token_secret = 'your_access_token_secret'
+
+# Authenticate with Twitter API
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+auth.set_access_token(access_token, access_token_secret)
+api = tweepy.API(auth, wait_on_rate_limit=True)
+
+# Fetch tweets
+query = "Your search query"
+tweets = tweepy.Cursor(api.search_tweets, q=query, lang="en", tweet_mode="extended").items(500)
+
+# Store tweets in a DataFrame
+data = [[tweet.full_text] for tweet in tweets]
+df = pd.DataFrame(data, columns=['text'])
+
+# Display sample data
+print(df.head())
+Step 4: Data Preprocessing
+Clean and preprocess the text data:
+
+
+# Function to clean the text
+def clean_text(text):
+    text = re.sub(r'@[A-Za-z0-9_]+', '', text)  # Remove @mentions
+    text = re.sub(r'#', '', text)  # Remove hashtags
+    text = re.sub(r'RT[\s]+', '', text)  # Remove RT
+    text = re.sub(r'https?:\/\/\S+', '', text)  # Remove hyperlinks
+    text = re.sub(r'\n', '', text)  # Remove newlines
+    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
+    return text
+
+# Apply the cleaning function
+df['cleaned_text'] = df['text'].apply(clean_text)
+
+# Remove stop words
+stop_words = set(stopwords.words('english'))
+df['cleaned_text'] = df['cleaned_text'].apply(lambda x: ' '.join([word for word in x.split() if word.lower() not in stop_words]))
+
+print(df.head())
+Step 5: Sentiment Analysis Using TextBlob
+Use TextBlob to perform sentiment analysis on the cleaned text:
+
+
+# Function to get sentiment polarity
+def get_sentiment(text):
+    analysis = TextBlob(text)
+    if analysis.sentiment.polarity > 0:
+        return 'positive'
+    elif analysis.sentiment.polarity < 0:
+        return 'negative'
+    else:
+        return 'neutral'
+
+# Apply the sentiment function
+df['sentiment'] = df['cleaned_text'].apply(get_sentiment)
+
+# Display the sentiment distribution
+print(df['sentiment'].value_counts())
+Step 6: Data Visualization
+Visualize the sentiment distribution:
+
+
+# Plot the sentiment distribution
+sns.countplot(x='sentiment', data=df)
+plt.title('Sentiment Analysis')
+plt.show()
+
+# Generate a word cloud for each sentiment
+for sentiment in ['positive', 'negative', 'neutral']:
+    subset = df[df['sentiment'] == sentiment]
+    text = ' '.join(subset['cleaned_text'].values)
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
+    plt.figure(figsize=(10, 6))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis('off')
+    plt.title(f'Word Cloud for {sentiment} sentiment')
+    plt.show()
+Step 7: Building a Machine Learning Model
+Use a machine learning approach like Naive Bayes to classify the sentiment.
+
+
+# Vectorize the text data using TF-IDF
+tfidf = TfidfVectorizer(max_features=5000)
+X = tfidf.fit_transform(df['cleaned_text']).toarray()
+y = df['sentiment']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train a Naive Bayes classifier
+model = MultinomialNB()
+model.fit(X_train, y_train)
+
+# Make predictions
+y_pred = model.predict(X_test)
+
+# Evaluate the model
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+# Plot the confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=model.classes_, yticklabels=model.classes_)
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.title('Confusion Matrix')
+plt.show()
+
+Conclusion:
+This guide provides a foundation for developing a social media sentiment analysis system. You can enhance it by using more sophisticated NLP techniques, such as word embeddings (Word2Vec, GloVe) or deep learning models (LSTM, BERT), to improve sentiment classification accuracy.
